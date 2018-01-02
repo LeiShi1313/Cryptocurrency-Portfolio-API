@@ -1,51 +1,40 @@
 /**
  * Created by DickyShi on 12/17/17.
  */
-import * as axios from 'axios';
+import axios, { AxiosResponse, AxiosRequestConfig} from "axios";
 import * as crypto from 'crypto';
 import * as querystring from 'querystring';
 
-const API_URL = 'https://www.okex.com/';
-const USER_INFO = '/api/v1/userinfo.do';
-const TICKER_URL = '/api/v1/ticker.do';
+import { Exchange, Params, Headers } from './exchange';
 
 
-function formatParam(params: object): string {
-    let formattedParams: string = '';
+export class OKex implements Exchange {
+    private API_URL = 'https://www.okex.com/';
+    private USER_INFO = '/api/v1/userinfo.do';
+    private TICKER_URL = '/api/v1/ticker.do';
 
-    let sortedKeys:string[] = Object.keys(params).sort();
-
-    for (var i = 0; i < sortedKeys.length; i++) {
-        if (i != 0) {
-            formattedParams += '&';
-        }
-        formattedParams += sortedKeys[i] + '=' + params[sortedKeys[i]];
+    private sorted(o: any) {
+        let p = Object.create(null);
+        for (const k of Object.keys(o).sort()) p[k] = o[k];
+        return p;
     }
-    return formattedParams
-}
 
-function sign(params: object, secret: string): string {
-    let formattedParams = formatParam(params);
-    formattedParams += '&secret_key=' + secret;
-    return crypto.createHash('md5').update(formattedParams).digest('hex').toUpperCase();
-}
+    private sign(params: object, secret: string): string {
+        let formattedParams = querystring.stringify(this.sorted(params));
+        formattedParams += '&secret_key=' + secret;
+        return crypto.createHash('md5').update(formattedParams).digest('hex').toUpperCase();
+    }
 
-
-interface Headers {
-    [key: string]: string;
-}
-
-let okex = {
-    getPrice: function(pair:string, callback: Function) {
-        let prams = {
+    public getPrice(pair:string, callback: Function) {
+        let prams: Params = {
             'symbol': pair
         };
-        return axios({
+        axios({
             method: 'GET',
-            url: API_URL + TICKER_URL,
+            url: this.API_URL + this.TICKER_URL,
             params: prams
         }).then(
-            (res: any) => {
+            (res: AxiosResponse) => {
                 if (res.status === 200) {
                     callback({
                         code: 1,
@@ -62,29 +51,29 @@ let okex = {
             }
         ).catch(
             (reason: any) => {
-                console.log(reason);
                 callback({
                     code: -1,
                     data: ''
                 })
             }
         )
-    },
-    getBalance: function(key: string, secret: string, callback: Function) {
-        let form = {};
+    }
+
+    public getBalance(key: string, secret: string, callback: Function) {
+        let form: Params = {};
         form['api_key'] = key;
-        form['sign'] = sign(form, secret);
-        let headers = {
+        form['sign'] = this.sign(form, secret);
+        let headers: Headers = {
             'Content-type': 'application/x-www-form-urlencoded'
         };
         console.log(form);
-        return axios({
+        axios({
             method: 'POST',
-            url: API_URL + USER_INFO,
+            url: this.API_URL + this.USER_INFO,
             headers: headers,
-            data: formatParam(form)
-        }).then(
-            (res: any) => {
+            data: querystring.stringify(form)
+        } as AxiosRequestConfig).then(
+            (res: AxiosResponse) => {
                 if (res.data['result'] === true) {
                     let data = [];
                     let funds = res.data['info']['funds'];
@@ -122,7 +111,5 @@ let okex = {
                 });
             });
     }
-};
+}
 
-
-export default okex;

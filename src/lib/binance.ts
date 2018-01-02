@@ -1,14 +1,17 @@
 /**
  * Created by DickyShi on 12/17/17.
  */
-import * as axios from 'axios';
+import axios, { AxiosResponse } from "axios";
 import * as crypto from 'crypto';
+
+import { Exchange, Params} from './exchange';
 
 const API_URL = 'https://api.binance.com';
 const USER_DATA = '/api/v3/account';
 const PRICE = '/api/v3/ticker/price';
 
-function formatParam(params: object): string {
+
+function formatParam(params: Params): string {
     let formattedParams: string = '';
 
     let sortedKeys:string[] = Object.keys(params).sort();
@@ -17,7 +20,8 @@ function formatParam(params: object): string {
         if (i != 0) {
             formattedParams += '&';
         }
-        formattedParams += sortedKeys[i] + '=' + params[sortedKeys[i]];
+        let key = params[sortedKeys[i]];
+        formattedParams += sortedKeys[i] + '=' + key;
     }
     return formattedParams
 }
@@ -26,22 +30,22 @@ function sign(params: string, secret: string) {
     return crypto.createHmac('sha256', secret).update(params).digest('hex').toString();
 }
 
-let binance = {
-    getPrice: function(pair: string, callback: Function) {
+export class Binance implements Exchange {
+    public getPrice(pair: string, callback: Function) {
         let pairs = pair.split('_');
-        let params = {
+        let params: Params = {
             'symbol': pairs.map(p => p.toUpperCase()).join("")
         };
         let headers = {
             'Content-type': 'application/x-www-form-urlencoded'
         };
-        return axios({
+        axios({
             method: 'GET',
             url: API_URL + PRICE,
             headers: headers,
             params: params
         }).then(
-            (res: any) => {
+            (res: AxiosResponse) => {
                 if (res.status === 200) {
                     callback({
                         code: 1,
@@ -55,25 +59,31 @@ let binance = {
                     });
                 }
             }
-        )
-    },
-
-    getBalance: function(key: string, secret: string, callback: Function) {
+        ).catch(
+            (reason: any) => {
+                callback({
+                    code: -1,
+                    data: []
+                })
+            }
+        );
+    }
+    getBalance(key: string, secret: string, callback: Function) {
         let headers = {
             'X-MBX-APIKEY': key,
             'Content-type': 'application/x-www-form-urlencoded'
         };
-        let params = {
+        let params: Params = {
             timestamp: new Date().getTime()
         };
         params['signature'] = sign(formatParam(params), secret);
-        return axios({
+        axios({
             method: 'GET',
             url: API_URL + USER_DATA,
             headers: headers,
             params: params
         }).then(
-            (res: any) => {
+            (res: AxiosResponse) => {
                 if (res.status === 200) {
                     let data = [];
                     for (let asset of res.data['balances']) {
@@ -114,6 +124,5 @@ let binance = {
                 }
             );
     }
-};
+}
 
-export default binance;

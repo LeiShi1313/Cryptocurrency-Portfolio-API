@@ -1,23 +1,23 @@
 /**
  * Created by DickyShi on 12/17/17.
  */
-import {Router, Request, Response, NextFunction} from 'express';
-import GateIO from '../lib/gate.io';
-import OKEX from '../lib/okex';
-import BINANCE from '../lib/binance';
-import HUOBI from '../lib/huobi';
-import ZB from '../lib/zb';
+import { Router, Request, Response, NextFunction} from 'express';
+import { Exchange, Binance, Gate, Huobi, OKex, ZB } from '../lib/index';
+import * as querystring from 'querystring';
 
 const keys = require('../keys');
 
-const Exchanges = {
-    'gate.io': GateIO,
-    'okex': OKEX,
-    'binance': BINANCE,
-    'huobi': HUOBI,
-    'zb': ZB
-};
+interface Exchanges {
+    [key: string]: Exchange
+}
 
+const exchanges: Exchanges = {
+    'gate.io': new Gate,
+    'okex': new OKex,
+    'binance': new Binance,
+    'huobi': new Huobi,
+    'zb': new ZB
+};
 
 export class ExchangeRouter {
     router: Router;
@@ -26,7 +26,7 @@ export class ExchangeRouter {
     constructor() {
         this.router = Router();
         this.cachedPrices = {};
-        for (let exchange of Object.keys(Exchanges)) {
+        for (let exchange of Object.keys(exchanges)) {
             this.cachedPrices[exchange] = {};
         }
         this.init();
@@ -34,7 +34,7 @@ export class ExchangeRouter {
 
     public getExchangeBalance = (req: Request, res: Response, next: NextFunction) => {
         let query = req.params.name;
-        let exchange = Exchanges[query];
+        let exchange = exchanges[query];
         let key = keys[query]['apiKey'];
         let secret = keys[query]['secretKey'];
         if (exchange) {
@@ -56,34 +56,48 @@ export class ExchangeRouter {
         }
     };
 
+    private reflect(promise: Promise) {
+        return promise.then(
+            (v: any) => { return {v:v, status: 1} },
+            (e: any) => { return {e:e, status: -1} }
+        );
+    };
+
     public getAllExchangePrice = (req: Request, res: Response, next: NextFunction) => {
         let pair = req.params.pair;
-        let data = {};
+        let data:any = {};
         let promises = [];
-        console.log('hi');
-        for (let exchange of Object.keys(Exchanges)) {
-            console.log(exchange);
+        for (let exchange of Object.keys(exchanges)) {
             promises.push(new Promise((resolve: Function, reject: Function) => {
-                Exchanges[exchange].getPrice(pair,
+                exchanges[exchange].getPrice(pair,
                     (result: any) => {
-                        console.log(result);
+                        // console.log(exchange + querystring.stringify(result));
                         if (result['code'] === 1) {
                             data[exchange] = Number(result['data']);
+                            resolve();
+                        } else {
+                            reject();
                         }
-                        resolve();
                     });
             }));
         }
-        Promise.all(promises).then(() => {
+        Promise.all(promises.map(this.reflect)).then(() => {
+            // console.log(data);
             res.status(200)
                 .send(data);
-        })
+        }).catch(
+            (reason: any) => {
+                // console.log(data);
+                res.status(404)
+                    .send(data);
+            }
+        );
     };
 
     public getExchangePrice = (req: Request, res: Response, next: NextFunction) => {
         let name = req.params.name;
         let pair = req.params.pair;
-        let exchange = Exchanges[name];
+        let exchange = exchanges[name];
         if (exchange) {
             exchange.getPrice(pair,
                 (result: any) => {

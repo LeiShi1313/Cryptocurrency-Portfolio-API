@@ -1,13 +1,14 @@
-import * as axios from 'axios';
+import axios, { AxiosResponse, AxiosRequestConfig} from "axios";
 import * as crypto from 'crypto';
 import * as querystring from 'querystring';
 
-const API_URL = 'https://data.gate.io/';
+import { Exchange, Params, Headers } from './exchange';
+
+
 const PAIRS_URL = 'api2/1/pairs';
 const MARKETINFO_URL = 'api2/1/marketinfo';
 const MARKETLIST_URL = 'api2/1/marketlist';
 const TICKERS_URL = 'api2/1/tickers';
-const TICKER_URL = 'api2/1/ticker';
 const ORDERBOOKS_URL = 'api2/1/orderBooks';
 const ORDERBOOK_URL = 'api2/1/orderBook';
 const TRADEHISTORY_URL = 'api2/1/tradeHistory';
@@ -23,24 +24,23 @@ const OPENORDERS_URL = 'api2/1/private/openOrders';
 const MYTRADEHISTORY_URL = 'api2/1/private/tradeHistory';
 const WITHDRAW_URL = 'api2/1/private/withdraw';
 
-const USER_AGENT = '';
 
 
-function getSign(form: object, secret: string) {
-    return crypto.createHmac('sha512', secret).update(form).digest('hex').toString();
-}
+export class Gate implements Exchange {
+    private API_URL = 'https://data.gate.io/';
+    private TICKER_URL = 'api2/1/ticker';
+    private BALANCE_URL = 'api2/1/private/balances';
 
-interface Headers {
-    [key: string]: string;
-}
+    private sign(params: string, secret: string) {
+        return crypto.createHmac('sha512', secret).update(params).digest('hex').toString();
+    }
 
-let gate = {
-    getPrice: function(pair: string, callback: Function) {
-        return axios({
+    public getPrice(pair: string, callback: Function) {
+        axios({
             method: 'GET',
-            url: API_URL + TICKER_URL + '/' + pair
+            url: this.API_URL + this.TICKER_URL + '/' + pair
         }).then(
-            (res: any) => {
+            (res: AxiosResponse) => {
                 if (res.data['result'] === 'true') {
                     callback({
                         code: 1,
@@ -57,29 +57,28 @@ let gate = {
             }
         ).catch(
             (reason: any) => {
-                console.log(reason);
                 callback({
                     code: -1,
                     data: ''
                 })
             }
         )
-    },
+    }
 
-    getBalance: function(key: string, secret: string, callback: Function) {
-        let form = {};
+    public getBalance(key: string, secret: string, callback: Function) {
+        let params: Params = {};
         let header: Headers = {};
         header.KEY = key;
-        header.SIGN = getSign(querystring.stringify(form), secret);
+        header.SIGN = this.sign(querystring.stringify(params), secret);
         console.log(header);
-        console.log(form);
-        return axios({
+        console.log(params);
+        axios({
             method: 'POST',
-            url: API_URL + BALANCE_URL,
+            url: this.API_URL + this.BALANCE_URL,
             headers: header,
-            form: form
-        }).then(
-            (res: any) => {
+            form: params
+        } as AxiosRequestConfig).then(
+            (res: AxiosResponse) => {
                 if (res.data['result'] === 'true') {
                     let data = [];
                     for (let status of ['available', 'locked']) {
@@ -110,7 +109,5 @@ let gate = {
                 console.log(reason);
             });
     }
-};
+}
 
-
-export default gate;

@@ -1,36 +1,39 @@
-import * as axios from 'axios';
+import axios, { AxiosResponse, AxiosRequestConfig} from "axios";
 import * as crypto from 'crypto';
 import * as querystring from 'querystring';
 
-const API_URL = 'https://trade.zb.com/';
-const ACCOUNT_INFO = 'api/getAccountInfo';
-const MARKET_URL = 'http://api.zb.com/';
-const TICKER_URL = 'data/v1/ticker';
+import { Exchange, Params, Headers } from './exchange';
 
-function sorted(o: object) {
-    let p = Object.create(null);
-    for (const k of Object.keys(o).sort()) p[k] = o[k];
-    return p;
-}
 
-function sign(params: object, secret: string): string {
-    let sortedParams = querystring.stringify(sorted(params));
-    console.log(sortedParams);
-    let sha1SecretKey = crypto.createHash('sha1').update(secret).digest('hex');
-    return crypto.createHmac('md5', sha1SecretKey).update(sortedParams).digest('hex');
-}
+export class ZB implements Exchange {
+    private API_URL = 'https://trade.zb.com/';
+    private ACCOUNT_INFO = 'api/getAccountInfo';
+    private MARKET_URL = 'http://api.zb.com/';
+    private TICKER_URL = 'data/v1/ticker';
 
-let zb = {
-    getPrice: function(pair:string, callback: Function) {
-        let prams = {
+    private sorted(o: any) {
+        let p = Object.create(null);
+        for (const k of Object.keys(o).sort()) p[k] = o[k];
+        return p;
+    }
+
+    private sign(params: Params, secret: string): string {
+        let sortedParams = querystring.stringify(this.sorted(params));
+        console.log(sortedParams);
+        let sha1SecretKey = crypto.createHash('sha1').update(secret).digest('hex');
+        return crypto.createHmac('md5', sha1SecretKey).update(sortedParams).digest('hex');
+    }
+
+    public getPrice(pair:string, callback: Function) {
+        let prams: Params = {
             'market': pair
         };
-        return axios({
+        axios({
             method: 'GET',
-            url: MARKET_URL + TICKER_URL,
+            url: this.MARKET_URL + this.TICKER_URL,
             params: prams
         }).then(
-            (res: any) => {
+            (res: AxiosResponse) => {
                 if (!res.data['error']) {
                     callback({
                         code: 1,
@@ -47,30 +50,29 @@ let zb = {
             }
         ).catch(
             (reason: any) => {
-                console.log(reason);
                 callback({
                     code: -1,
                     data: ''
                 })
             }
         )
-    },
-    getBalance: function(key: string, secret: string, callback: Function) {
-        let params = {
+    }
+    public getBalance(key: string, secret: string, callback: Function) {
+        let params: Params = {
             'accesskey': key,
             'method': 'getAccountInfo'
         };
-        let headers = {};
-        params['sign'] = sign(params, secret);
+        let headers: Headers = {};
+        params['sign'] = this.sign(params, secret);
         params['reqTime'] = new Date().getTime();
         console.log(params);
-        return axios({
+        axios({
             method: 'GET',
-            url: API_URL + ACCOUNT_INFO,
+            url: this.API_URL + this.ACCOUNT_INFO,
             headers: headers,
             params: params
         }).then(
-            (res:any) => {
+            (res:AxiosResponse) => {
                 if (res.status === 200) {
                     let coins = res.data['result']['coins'];
                     let data = [];
@@ -113,6 +115,5 @@ let zb = {
         )
     }
 
-};
+}
 
-export default zb;
