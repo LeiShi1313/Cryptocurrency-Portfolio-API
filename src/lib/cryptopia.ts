@@ -8,6 +8,7 @@ import { connect } from "http2";
 export class Cryptopia implements Exchange {
     private API_URL = 'https://www.cryptopia.co.nz';
     private GET_BALANCE = '/Api/GetBalance';
+    private GET_MARKET = '/Api/GetMarket';
 
     private sign(method: string, params: Params, key: string, secret: string) {
         let paramsStr = querystring.stringify(params) || '{}';
@@ -22,7 +23,36 @@ export class Cryptopia implements Exchange {
     };
 
     public getPrice(pair: string, callback: Function) {
-
+        let headers = {
+            'Content-type': 'application/x-www-form-urlencoded'
+        };
+        axios({
+            method: 'GET',
+            url: this.API_URL + this.GET_MARKET + '/' + pair.toUpperCase(),
+            headers: headers,
+        }).then(
+            (res: AxiosResponse) => {
+                if (res.data['Success'] === true) {
+                    callback({
+                        code: 1,
+                        data: res.data['Data']['Close']
+                    })
+                } else {
+                    callback({
+                        code: -1,
+                        message: res.data['message'],
+                        data: []
+                    });
+                }
+            }
+        ).catch(
+            (reason: any) => {
+                callback({
+                    code: -1,
+                    data: []
+                })
+            }
+        );
     }
     getBalance(key: string, secret: string, callback: Function) {
         let params: Params = {};
@@ -64,8 +94,8 @@ export class Cryptopia implements Exchange {
                     });
                 } else {
                     callback({
-                        code: res.data['code'],
-                        message: res.data['msg'],
+                        code: -1,
+                        message: res.data['message'],
                         data: []
                     });
                 }

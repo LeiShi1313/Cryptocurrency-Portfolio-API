@@ -7,6 +7,7 @@ class Cryptopia {
     constructor() {
         this.API_URL = 'https://www.cryptopia.co.nz';
         this.GET_BALANCE = '/Api/GetBalance';
+        this.GET_MARKET = '/Api/GetMarket';
     }
     sign(method, params, key, secret) {
         let paramsStr = querystring.stringify(params) || '{}';
@@ -21,6 +22,33 @@ class Cryptopia {
     }
     ;
     getPrice(pair, callback) {
+        let headers = {
+            'Content-type': 'application/x-www-form-urlencoded'
+        };
+        axios_1.default({
+            method: 'GET',
+            url: this.API_URL + this.GET_MARKET + '/' + pair.toUpperCase(),
+            headers: headers,
+        }).then((res) => {
+            if (res.data['Success'] === true) {
+                callback({
+                    code: 1,
+                    data: res.data['Data']['Close']
+                });
+            }
+            else {
+                callback({
+                    code: -1,
+                    message: res.data['message'],
+                    data: []
+                });
+            }
+        }).catch((reason) => {
+            callback({
+                code: -1,
+                data: []
+            });
+        });
     }
     getBalance(key, secret, callback) {
         let params = {};
@@ -62,8 +90,8 @@ class Cryptopia {
             }
             else {
                 callback({
-                    code: res.data['code'],
-                    message: res.data['msg'],
+                    code: -1,
+                    message: res.data['message'],
                     data: []
                 });
             }
