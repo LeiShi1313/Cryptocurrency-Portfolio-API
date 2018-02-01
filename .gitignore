@@ -58,4 +58,4 @@ typings/
 .env
 
 # key file
-src/keys.json
+**/keys.json

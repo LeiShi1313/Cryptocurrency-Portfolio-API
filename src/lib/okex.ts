@@ -1,6 +1,3 @@
-/**
- * Created by DickyShi on 12/17/17.
- */
 import axios, { AxiosResponse, AxiosRequestConfig} from "axios";
 import * as crypto from 'crypto';
 import * as querystring from 'querystring';

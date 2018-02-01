@@ -1,36 +1,19 @@
-/**
- * Created by DickyShi on 12/17/17.
- */
 import axios, { AxiosResponse } from "axios";
-import * as crypto from 'crypto';
+import * as crypto from "crypto";
+import * as querystring from "querystring";
 
-import { Exchange, Params} from './exchange';
+import { Exchange, Params} from "./exchange";
 
-const API_URL = 'https://api.binance.com';
-const USER_DATA = '/api/v3/account';
-const PRICE = '/api/v3/ticker/price';
-
-
-function formatParam(params: Params): string {
-    let formattedParams: string = '';
-
-    let sortedKeys:string[] = Object.keys(params).sort();
-
-    for (var i = 0; i < sortedKeys.length; i++) {
-        if (i != 0) {
-            formattedParams += '&';
-        }
-        let key = params[sortedKeys[i]];
-        formattedParams += sortedKeys[i] + '=' + key;
-    }
-    return formattedParams
-}
-
-function sign(params: string, secret: string) {
-    return crypto.createHmac('sha256', secret).update(params).digest('hex').toString();
-}
 
 export class Binance implements Exchange {
+    private API_URL = 'https://api.binance.com';
+    private USER_DATA = '/api/v3/account';
+    private PRICE = '/api/v3/ticker/price';
+
+    private sign(params: string, secret: string) {
+        return crypto.createHmac('sha256', secret).update(params).digest('hex').toString();
+    }
+
     public getPrice(pair: string, callback: Function) {
         let pairs = pair.split('_');
         let params: Params = {
@@ -41,7 +24,7 @@ export class Binance implements Exchange {
         };
         axios({
             method: 'GET',
-            url: API_URL + PRICE,
+            url: this.API_URL + this.PRICE,
             headers: headers,
             params: params
         }).then(
@@ -76,10 +59,10 @@ export class Binance implements Exchange {
         let params: Params = {
             timestamp: new Date().getTime()
         };
-        params['signature'] = sign(formatParam(params), secret);
+        params['signature'] = this.sign(querystring.stringify(params), secret);
         axios({
             method: 'GET',
-            url: API_URL + USER_DATA,
+            url: this.API_URL + this.USER_DATA,
             headers: headers,
             params: params
         }).then(

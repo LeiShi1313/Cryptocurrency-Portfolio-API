@@ -4,7 +4,6 @@ import * as logger from 'morgan';
 import * as bodyParser from 'body-parser';
 import * as cors from 'cors';
 
-import HeroRouter from './routes/HeroRouter';
 import ExchangeRouter from './routes/ExchangeRouter';
 
 class App {
@@ -25,7 +24,6 @@ class App {
 
     private routes(): void {
         this.express.use(express.static(path.join(__dirname, '../public')));
-        this.express.use('/api/v1/heroes', HeroRouter);
         this.express.use('/api/v1/', ExchangeRouter);
     }
 }

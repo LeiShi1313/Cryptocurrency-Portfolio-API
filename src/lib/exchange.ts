@@ -1,6 +1,3 @@
-/**
- * Created by DickyShi on 12/17/17.
- */
 
 export interface Exchange {
     getPrice(pair: string, callback: Function): void;

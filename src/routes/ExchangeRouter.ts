@@ -2,7 +2,7 @@
  * Created by DickyShi on 12/17/17.
  */
 import { Router, Request, Response, NextFunction} from 'express';
-import { Exchange, Binance, Gate, Huobi, OKex, ZB } from '../lib/index';
+import { Exchange, Binance, Gate, Huobi, OKex, ZB, Cryptopia } from '../lib/index';
 import * as querystring from 'querystring';
 
 const keys = require('../keys');
@@ -16,7 +16,8 @@ const exchanges: Exchanges = {
     'okex': new OKex,
     'binance': new Binance,
     'huobi': new Huobi,
-    'zb': new ZB
+    'zb': new ZB,
+    'cryptopia': new Cryptopia
 };
 
 export class ExchangeRouter {
@@ -56,7 +57,7 @@ export class ExchangeRouter {
         }
     };
 
-    private reflect(promise: Promise) {
+    private reflect(promise: Promise<any>) {
         return promise.then(
             (v: any) => { return {v:v, status: 1} },
             (e: any) => { return {e:e, status: -1} }
