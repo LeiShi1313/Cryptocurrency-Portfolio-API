@@ -12,7 +12,7 @@ class Binance {
     sign(params, secret) {
         return crypto.createHmac('sha256', secret).update(params).digest('hex').toString();
     }
-    getPrice(pair, callback) {
+    getPrice(pair) {
         let pairs = pair.split('_');
         let params = {
             'symbol': pairs.map(p => p.toUpperCase()).join("")
@@ -20,33 +20,50 @@ class Binance {
         let headers = {
             'Content-type': 'application/x-www-form-urlencoded'
         };
-        axios_1.default({
+        const result = axios_1.default({
             method: 'GET',
             url: this.API_URL + this.PRICE,
             headers: headers,
             params: params
         }).then((res) => {
+            console.log(res.data);
             if (res.status === 200) {
-                callback({
+                return {
                     code: 1,
                     data: res.data['price']
-                });
+                };
             }
             else {
-                callback({
+                throw {
                     code: res.data['code'],
                     message: res.data['msg'],
                     data: []
-                });
+                };
             }
         }).catch((reason) => {
-            callback({
-                code: -1,
-                data: []
-            });
+            if (reason['code']) {
+                throw reason;
+            }
+            else {
+                const data = reason.response.data;
+                if (data) {
+                    throw {
+                        code: data.code,
+                        message: data.msg,
+                        data: []
+                    };
+                }
+                else {
+                    throw {
+                        code: -1,
+                        data: []
+                    };
+                }
+            }
         });
+        return result;
     }
-    getBalance(key, secret, callback) {
+    getBalance(key, secret) {
         let headers = {
             'X-MBX-APIKEY': key,
             'Content-type': 'application/x-www-form-urlencoded'
@@ -55,7 +72,7 @@ class Binance {
             timestamp: new Date().getTime()
         };
         params['signature'] = this.sign(querystring.stringify(params), secret);
-        axios_1.default({
+        const result = axios_1.default({
             method: 'GET',
             url: this.API_URL + this.USER_DATA,
             headers: headers,
@@ -79,26 +96,31 @@ class Binance {
                         });
                     }
                 }
-                callback({
+                return {
                     code: 1,
                     data: data
-                });
+                };
             }
             else {
-                callback({
+                throw {
                     code: res.data['code'],
                     message: res.data['msg'],
                     data: []
-                });
+                };
             }
         })
             .catch((reason) => {
-            console.log(reason);
-            callback({
-                code: -1,
-                data: []
-            });
+            if (reason['code']) {
+                throw reason;
+            }
+            else {
+                throw {
+                    code: -1,
+                    data: []
+                };
+            }
         });
+        return result;
     }
 }
 exports.Binance = Binance;

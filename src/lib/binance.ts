@@ -2,7 +2,7 @@ import axios, { AxiosResponse } from "axios";
 import * as crypto from "crypto";
 import * as querystring from "querystring";
 
-import { Exchange, Params} from "./exchange";
+import { Exchange, Data, Balance, Params} from "./exchange";
 
 
 export class Binance implements Exchange {
@@ -14,7 +14,7 @@ export class Binance implements Exchange {
         return crypto.createHmac('sha256', secret).update(params).digest('hex').toString();
     }
 
-    public getPrice(pair: string, callback: Function) {
+    public getPrice(pair: string): Promise<Data> {
         let pairs = pair.split('_');
         let params: Params = {
             'symbol': pairs.map(p => p.toUpperCase()).join("")
@@ -22,36 +22,51 @@ export class Binance implements Exchange {
         let headers = {
             'Content-type': 'application/x-www-form-urlencoded'
         };
-        axios({
+        const result = axios({
             method: 'GET',
             url: this.API_URL + this.PRICE,
             headers: headers,
             params: params
         }).then(
             (res: AxiosResponse) => {
+                console.log(res.data);
                 if (res.status === 200) {
-                    callback({
+                    return {
                         code: 1,
                         data: res.data['price']
-                    })
+                    };
                 } else {
-                    callback({
+                    throw {
                         code: res.data['code'],
                         message: res.data['msg'],
                         data: []
-                    });
+                    };
                 }
             }
         ).catch(
             (reason: any) => {
-                callback({
-                    code: -1,
-                    data: []
-                })
+                if (reason['code']) {
+                    throw reason;
+                } else {
+                    const data = reason.response.data;
+                    if (data) {
+                        throw {
+                            code: data.code,
+                            message: data.msg,
+                            data: []
+                        };
+                    } else {
+                        throw {
+                            code: -1,
+                            data: []
+                        }
+                    }
+                }
             }
         );
+        return result;
     }
-    getBalance(key: string, secret: string, callback: Function) {
+    getBalance(key: string, secret: string): Promise<Data> {
         let headers = {
             'X-MBX-APIKEY': key,
             'Content-type': 'application/x-www-form-urlencoded'
@@ -60,7 +75,7 @@ export class Binance implements Exchange {
             timestamp: new Date().getTime()
         };
         params['signature'] = this.sign(querystring.stringify(params), secret);
-        axios({
+        const result = axios({
             method: 'GET',
             url: this.API_URL + this.USER_DATA,
             headers: headers,
@@ -68,7 +83,7 @@ export class Binance implements Exchange {
         }).then(
             (res: AxiosResponse) => {
                 if (res.status === 200) {
-                    let data = [];
+                    let data: Balance[] = [];
                     for (let asset of res.data['balances']) {
                         if (asset['free'] != 0.0) {
                             data.push({
@@ -85,27 +100,31 @@ export class Binance implements Exchange {
                             })
                         }
                     }
-                    callback({
+                    return {
                         code: 1,
                         data: data
-                    });
+                    };
                 } else {
-                    callback({
+                    throw {
                         code: res.data['code'],
                         message: res.data['msg'],
                         data: []
-                    });
+                    };
                 }
             })
             .catch(
                 (reason: any) => {
-                    console.log(reason);
-                    callback({
-                        code: -1,
-                        data: []
-                    })
+                    if (reason['code']) {
+                        throw reason;
+                    } else {
+                        throw {
+                            code: -1,
+                            data: []
+                        };
+                    }
                 }
             );
+        return result;
     }
 }
 

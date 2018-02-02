@@ -21,36 +21,42 @@ class Cryptopia {
         return crypto.createHmac('sha256', new Buffer(secret, "base64")).update(signature).digest().toString('base64') + ':' + nonce;
     }
     ;
-    getPrice(pair, callback) {
+    getPrice(pair) {
         let headers = {
             'Content-type': 'application/x-www-form-urlencoded'
         };
-        axios_1.default({
+        const result = axios_1.default({
             method: 'GET',
             url: this.API_URL + this.GET_MARKET + '/' + pair.toUpperCase(),
             headers: headers,
         }).then((res) => {
-            if (res.data['Success'] === true) {
-                callback({
+            if (res.data['Success'] === true && res.data['Data']) {
+                return {
                     code: 1,
                     data: res.data['Data']['Close']
-                });
+                };
             }
             else {
-                callback({
+                throw {
                     code: -1,
-                    message: res.data['message'],
+                    message: res.data['Error'],
                     data: []
-                });
+                };
             }
         }).catch((reason) => {
-            callback({
-                code: -1,
-                data: []
-            });
+            if (reason['code']) {
+                throw reason;
+            }
+            else {
+                throw {
+                    code: -1,
+                    data: []
+                };
+            }
         });
+        return result;
     }
-    getBalance(key, secret, callback) {
+    getBalance(key, secret) {
         let params = {};
         let signature = this.sign("/Api/GetBalance", params, key, secret);
         let headers = {
@@ -59,7 +65,7 @@ class Cryptopia {
             'Content-Length': Buffer.byteLength(JSON.stringify(params))
         };
         console.log("header: " + JSON.stringify(headers, null, 4));
-        axios_1.default({
+        const result = axios_1.default({
             method: 'POST',
             url: this.API_URL + this.GET_BALANCE,
             headers: headers,
@@ -83,26 +89,31 @@ class Cryptopia {
                         });
                     }
                 }
-                callback({
+                return {
                     code: 1,
                     data: data
-                });
+                };
             }
             else {
-                callback({
+                throw {
                     code: -1,
                     message: res.data['message'],
                     data: []
-                });
+                };
             }
         })
             .catch((reason) => {
-            console.log(reason);
-            callback({
-                code: -1,
-                data: []
-            });
+            if (reason['code']) {
+                throw reason;
+            }
+            else {
+                throw {
+                    code: -1,
+                    data: []
+                };
+            }
         });
+        return result;
     }
 }
 exports.Cryptopia = Cryptopia;

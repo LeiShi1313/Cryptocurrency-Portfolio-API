@@ -2,7 +2,7 @@ import axios, { AxiosResponse, AxiosRequestConfig} from "axios";
 import * as crypto from 'crypto';
 import * as querystring from 'querystring';
 
-import { Exchange, Params, Headers } from './exchange';
+import { Exchange, Data, Balance, Params, Headers } from './exchange';
 
 
 const PAIRS_URL = 'api2/1/pairs';
@@ -35,44 +35,47 @@ export class Gate implements Exchange {
         return crypto.createHmac('sha512', secret).update(params).digest('hex').toString();
     }
 
-    public getPrice(pair: string, callback: Function) {
-        axios({
+    public getPrice(pair: string): Promise<Data> {
+        const result = axios({
             method: 'GET',
             url: this.API_URL + this.TICKER_URL + '/' + pair
         }).then(
             (res: AxiosResponse) => {
                 if (res.data['result'] === 'true') {
-                    callback({
+                    return {
                         code: 1,
                         data: res.data['last']
-                    })
+                    };
                 } else {
-                    callback({
+                    throw {
                         code: res.data['code'],
                         message: res.data['message'],
                         data: ''
-                    })
+                    };
                 }
 
             }
         ).catch(
             (reason: any) => {
-                callback({
-                    code: -1,
-                    data: ''
-                })
+                if (reason['code']) {
+                    throw reason;
+                } else {
+                    throw {
+                        code: -1,
+                        data: []
+                    };
+                }
             }
         )
+        return result;
     }
 
-    public getBalance(key: string, secret: string, callback: Function) {
+    public getBalance(key: string, secret: string): Promise<Data> {
         let params: Params = {};
         let header: Headers = {};
         header.KEY = key;
         header.SIGN = this.sign(querystring.stringify(params), secret);
-        console.log(header);
-        console.log(params);
-        axios({
+        const result = axios({
             method: 'POST',
             url: this.API_URL + this.BALANCE_URL,
             headers: header,
@@ -92,22 +95,30 @@ export class Gate implements Exchange {
                             }
                         }
                     }
-                    callback({
+                    return {
                         code: 1,
                         data: data
-                    });
+                    };
                 } else {
-                    callback({
+                    throw {
                         code: res.data['code'],
                         message: res.data['message'],
                         data: []
-                    })
+                    };
                 }
             }
         ).catch(
             (reason: any) => {
-                console.log(reason);
+                if (reason['code']) {
+                    throw reason;
+                } else {
+                    throw {
+                        code: -1,
+                        data: []
+                    };
+                }
             });
+        return result;
     }
 }
 

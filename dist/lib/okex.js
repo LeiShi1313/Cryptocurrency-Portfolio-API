@@ -20,44 +20,49 @@ class OKex {
         formattedParams += '&secret_key=' + secret;
         return crypto.createHash('md5').update(formattedParams).digest('hex').toUpperCase();
     }
-    getPrice(pair, callback) {
+    getPrice(pair) {
         let prams = {
             'symbol': pair
         };
-        axios_1.default({
+        const result = axios_1.default({
             method: 'GET',
             url: this.API_URL + this.TICKER_URL,
             params: prams
         }).then((res) => {
             if (res.status === 200) {
-                callback({
+                return {
                     code: 1,
                     data: res.data['ticker']['last']
-                });
+                };
             }
             else {
-                callback({
+                throw {
                     code: res.data['error_code'],
                     message: '',
                     data: ''
-                });
+                };
             }
         }).catch((reason) => {
-            callback({
-                code: -1,
-                data: ''
-            });
+            if (reason['code']) {
+                throw reason;
+            }
+            else {
+                throw {
+                    code: -1,
+                    data: []
+                };
+            }
         });
+        return result;
     }
-    getBalance(key, secret, callback) {
+    getBalance(key, secret) {
         let form = {};
         form['api_key'] = key;
         form['sign'] = this.sign(form, secret);
         let headers = {
             'Content-type': 'application/x-www-form-urlencoded'
         };
-        console.log(form);
-        axios_1.default({
+        const result = axios_1.default({
             method: 'POST',
             url: this.API_URL + this.USER_INFO,
             headers: headers,
@@ -79,25 +84,30 @@ class OKex {
                         }
                     }
                 }
-                callback({
+                return {
                     code: 1,
                     data: data
-                });
+                };
             }
             else {
-                callback({
+                throw {
                     code: res.data['code'],
                     message: res.data['error_code'],
                     data: []
-                });
+                };
             }
         }).catch((reason) => {
-            callback({
-                code: -1,
-                message: reason,
-                data: []
-            });
+            if (reason['code']) {
+                throw reason;
+            }
+            else {
+                throw {
+                    code: -1,
+                    data: []
+                };
+            }
         });
+        return result;
     }
 }
 exports.OKex = OKex;

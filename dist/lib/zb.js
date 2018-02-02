@@ -18,40 +18,45 @@ class ZB {
     }
     sign(params, secret) {
         let sortedParams = querystring.stringify(this.sorted(params));
-        console.log(sortedParams);
         let sha1SecretKey = crypto.createHash('sha1').update(secret).digest('hex');
         return crypto.createHmac('md5', sha1SecretKey).update(sortedParams).digest('hex');
     }
-    getPrice(pair, callback) {
+    getPrice(pair) {
         let prams = {
             'market': pair
         };
-        axios_1.default({
+        const result = axios_1.default({
             method: 'GET',
             url: this.MARKET_URL + this.TICKER_URL,
             params: prams
         }).then((res) => {
             if (!res.data['error']) {
-                callback({
+                return {
                     code: 1,
                     data: res.data['ticker']['last']
-                });
+                };
             }
             else {
-                callback({
+                throw {
                     code: -1,
                     message: res.data['error'],
                     data: ''
-                });
+                };
             }
         }).catch((reason) => {
-            callback({
-                code: -1,
-                data: ''
-            });
+            if (reason['code']) {
+                throw reason;
+            }
+            else {
+                throw {
+                    code: -1,
+                    data: []
+                };
+            }
         });
+        return result;
     }
-    getBalance(key, secret, callback) {
+    getBalance(key, secret) {
         let params = {
             'accesskey': key,
             'method': 'getAccountInfo'
@@ -59,8 +64,7 @@ class ZB {
         let headers = {};
         params['sign'] = this.sign(params, secret);
         params['reqTime'] = new Date().getTime();
-        console.log(params);
-        axios_1.default({
+        const result = axios_1.default({
             method: 'GET',
             url: this.API_URL + this.ACCOUNT_INFO,
             headers: headers,
@@ -85,26 +89,30 @@ class ZB {
                         });
                     }
                 }
-                callback({
+                return {
                     code: 1,
                     data: data
-                });
+                };
             }
             else {
-                callback({
+                throw {
                     code: res.data['code'],
                     message: res.data['message'],
                     data: []
-                });
+                };
             }
         }).catch((reason) => {
-            console.log(reason);
-            callback({
-                code: -1,
-                message: "",
-                data: []
-            });
+            if (reason['code']) {
+                throw reason;
+            }
+            else {
+                throw {
+                    code: -1,
+                    data: []
+                };
+            }
         });
+        return result;
     }
 }
 exports.ZB = ZB;

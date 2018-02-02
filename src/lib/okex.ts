@@ -2,7 +2,7 @@ import axios, { AxiosResponse, AxiosRequestConfig} from "axios";
 import * as crypto from 'crypto';
 import * as querystring from 'querystring';
 
-import { Exchange, Params, Headers } from './exchange';
+import { Exchange, Data, Balance, Params, Headers } from './exchange';
 
 
 export class OKex implements Exchange {
@@ -22,49 +22,53 @@ export class OKex implements Exchange {
         return crypto.createHash('md5').update(formattedParams).digest('hex').toUpperCase();
     }
 
-    public getPrice(pair:string, callback: Function) {
+    public getPrice(pair:string): Promise<Data> {
         let prams: Params = {
             'symbol': pair
         };
-        axios({
+        const result = axios({
             method: 'GET',
             url: this.API_URL + this.TICKER_URL,
             params: prams
         }).then(
             (res: AxiosResponse) => {
                 if (res.status === 200) {
-                    callback({
+                    return {
                         code: 1,
                         data: res.data['ticker']['last']
-                    })
+                    }
                 } else {
-                    callback({
+                    throw {
                         code: res.data['error_code'],
                         message: '',
                         data: ''
-                    })
+                    }
                 }
 
             }
         ).catch(
             (reason: any) => {
-                callback({
-                    code: -1,
-                    data: ''
-                })
+                if (reason['code']) {
+                    throw reason;
+                } else {
+                    throw {
+                        code: -1,
+                        data: []
+                    };
+                }
             }
         )
+        return result;
     }
 
-    public getBalance(key: string, secret: string, callback: Function) {
+    public getBalance(key: string, secret: string): Promise<Data> {
         let form: Params = {};
         form['api_key'] = key;
         form['sign'] = this.sign(form, secret);
         let headers: Headers = {
             'Content-type': 'application/x-www-form-urlencoded'
         };
-        console.log(form);
-        axios({
+        const result = axios({
             method: 'POST',
             url: this.API_URL + this.USER_INFO,
             headers: headers,
@@ -87,26 +91,30 @@ export class OKex implements Exchange {
                             }
                         }
                     }
-                    callback({
+                    return {
                         code: 1,
                         data: data
-                    });
+                    };
                 } else {
-                    callback({
+                    throw {
                         code: res.data['code'],
                         message: res.data['error_code'],
                         data: []
-                    })
+                    }
                 }
             }
         ).catch(
             (reason: any) => {
-                callback({
-                    code: -1,
-                    message: reason,
-                    data: []
-                });
+                if (reason['code']) {
+                    throw reason;
+                } else {
+                    throw {
+                        code: -1,
+                        data: []
+                    };
+                }
             });
+        return result;
     }
 }
 

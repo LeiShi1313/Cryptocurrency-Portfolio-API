@@ -29,39 +29,43 @@ class Gate {
     sign(params, secret) {
         return crypto.createHmac('sha512', secret).update(params).digest('hex').toString();
     }
-    getPrice(pair, callback) {
-        axios_1.default({
+    getPrice(pair) {
+        const result = axios_1.default({
             method: 'GET',
             url: this.API_URL + this.TICKER_URL + '/' + pair
         }).then((res) => {
             if (res.data['result'] === 'true') {
-                callback({
+                return {
                     code: 1,
                     data: res.data['last']
-                });
+                };
             }
             else {
-                callback({
+                throw {
                     code: res.data['code'],
                     message: res.data['message'],
                     data: ''
-                });
+                };
             }
         }).catch((reason) => {
-            callback({
-                code: -1,
-                data: ''
-            });
+            if (reason['code']) {
+                throw reason;
+            }
+            else {
+                throw {
+                    code: -1,
+                    data: []
+                };
+            }
         });
+        return result;
     }
-    getBalance(key, secret, callback) {
+    getBalance(key, secret) {
         let params = {};
         let header = {};
         header.KEY = key;
         header.SIGN = this.sign(querystring.stringify(params), secret);
-        console.log(header);
-        console.log(params);
-        axios_1.default({
+        const result = axios_1.default({
             method: 'POST',
             url: this.API_URL + this.BALANCE_URL,
             headers: header,
@@ -80,21 +84,30 @@ class Gate {
                         }
                     }
                 }
-                callback({
+                return {
                     code: 1,
                     data: data
-                });
+                };
             }
             else {
-                callback({
+                throw {
                     code: res.data['code'],
                     message: res.data['message'],
                     data: []
-                });
+                };
             }
         }).catch((reason) => {
-            console.log(reason);
+            if (reason['code']) {
+                throw reason;
+            }
+            else {
+                throw {
+                    code: -1,
+                    data: []
+                };
+            }
         });
+        return result;
     }
 }
 exports.Gate = Gate;

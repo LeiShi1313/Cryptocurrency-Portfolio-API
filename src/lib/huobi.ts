@@ -2,7 +2,7 @@ import axios, { AxiosResponse, AxiosRequestConfig} from "axios";
 import * as crypto from 'crypto';
 import * as querystring from 'querystring';
 
-import { Exchange, Params, Headers } from './exchange';
+import { Exchange, Data, Balance, Params, Headers } from './exchange';
 
 
 
@@ -28,7 +28,7 @@ export class Huobi implements Exchange {
         return new Buffer(sha256String).toString('base64');
     }
 
-    public getPrice(pair: string, callback: Function) {
+    public getPrice(pair: string): Promise<Data> {
         let pairs = pair.split('_');
         let params:Params = {
             'symbol': pairs.map(p => p.toLowerCase()).join("")
@@ -38,7 +38,7 @@ export class Huobi implements Exchange {
             'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.71 Safari/537.36'
         };
 
-        axios({
+        const result = axios({
             method: 'GET',
             url: this.METHOD + this.API_URL + this.MARKET_DETAIL,
             headers: headers,
@@ -46,29 +46,34 @@ export class Huobi implements Exchange {
         }).then(
             (res: AxiosResponse) => {
                 if (res.data['status'] === 'ok') {
-                    callback({
+                    return {
                         code: 1,
                         data: res.data['tick']['close']
-                    })
+                    }
                 } else {
-                    callback({
+                    throw {
                         code: res.data['err-code'],
                         message: res.data['err-msg'],
                         data: ''
-                    })
+                    }
                 }
 
             }
         ).catch(
             (reason: any) => {
-                callback({
-                    code: -1,
-                    data: ''
-                })
+                if (reason['code']) {
+                    throw reason;
+                } else {
+                    throw {
+                        code: -1,
+                        data: []
+                    };
+                }
             }
         )
+        return result;
     }
-    public getBalance(key: string, secret: string, callback: Function) {
+    public getBalance(key: string, secret: string): Promise<Data> {
         let params: Params = {
             'SignatureMethod': 'HmacSHA256',
             'SignatureVersion': '2',
@@ -80,14 +85,13 @@ export class Huobi implements Exchange {
             'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.71 Safari/537.36'
         };
         params['Signature'] = this.sign('GET', this.API_URL, this.BALANCE_URL, params, secret);
-        axios({
+        const result = axios({
             method: 'GET',
             url: this.METHOD + this.API_URL + this.BALANCE_URL,
             headers: headers,
             params: params
         }).then(
             (res: AxiosResponse) => {
-                console.log(res.data);
                 if (res.data['status'] === 'ok') {
                     let data = [];
                     let list = res.data['data']['list'];
@@ -100,27 +104,30 @@ export class Huobi implements Exchange {
                             });
                         }
                     }
-                    callback({
+                    return {
                         code: 1,
                         data: data
-                    });
+                    };
                 } else {
-                    callback({
+                    throw {
                         code: res.data['code'],
                         message: res.data['error_code'],
                         data: []
-                    })
+                    }
                 }
             }
         ).catch(
             (reason: any) => {
-                console.log(reason);
-                callback({
-                    code: -1,
-                    message: reason,
-                    data: []
-                });
+                if (reason['code']) {
+                    throw reason;
+                } else {
+                    throw {
+                        code: -1,
+                        data: []
+                    };
+                }
             });
+        return result;
     }
 }
 

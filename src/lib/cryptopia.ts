@@ -1,7 +1,7 @@
 import axios, { AxiosResponse } from "axios";
 import * as crypto from 'crypto';
 
-import { Exchange, Params} from './exchange';
+import { Exchange, Data, Balance, Params} from './exchange';
 import * as querystring from "querystring";
 import { connect } from "http2";
 
@@ -22,39 +22,44 @@ export class Cryptopia implements Exchange {
         return crypto.createHmac('sha256', new Buffer( secret, "base64" ) ).update( signature ).digest().toString('base64') + ':' + nonce;
     };
 
-    public getPrice(pair: string, callback: Function) {
+    public getPrice(pair: string): Promise<Data> {
         let headers = {
             'Content-type': 'application/x-www-form-urlencoded'
         };
-        axios({
+        const result = axios({
             method: 'GET',
             url: this.API_URL + this.GET_MARKET + '/' + pair.toUpperCase(),
             headers: headers,
         }).then(
             (res: AxiosResponse) => {
-                if (res.data['Success'] === true) {
-                    callback({
+                if (res.data['Success'] === true && res.data['Data']) {
+                    return {
                         code: 1,
                         data: res.data['Data']['Close']
-                    })
+                    }
                 } else {
-                    callback({
+                    throw {
                         code: -1,
-                        message: res.data['message'],
+                        message: res.data['Error'],
                         data: []
-                    });
+                    };
                 }
             }
         ).catch(
             (reason: any) => {
-                callback({
-                    code: -1,
-                    data: []
-                })
+                if (reason['code']) {
+                    throw reason;
+                } else {
+                    throw {
+                        code: -1,
+                        data: []
+                    };
+                }
             }
         );
+        return result;
     }
-    getBalance(key: string, secret: string, callback: Function) {
+    getBalance(key: string, secret: string): Promise<Data> {
         let params: Params = {};
         let signature = this.sign("/Api/GetBalance", params, key, secret);
         let headers = {
@@ -63,7 +68,7 @@ export class Cryptopia implements Exchange {
             'Content-Length': Buffer.byteLength(JSON.stringify(params))
         };
         console.log("header: " + JSON.stringify(headers, null, 4));
-        axios({
+        const result = axios({
             method: 'POST',
             url: this.API_URL + this.GET_BALANCE,
             headers: headers,
@@ -88,26 +93,30 @@ export class Cryptopia implements Exchange {
                             })
                         }
                     }
-                    callback({
+                    return {
                         code: 1,
                         data: data
-                    });
+                    };
                 } else {
-                    callback({
+                    throw {
                         code: -1,
                         message: res.data['message'],
                         data: []
-                    });
+                    };
                 }
             })
             .catch(
                 (reason: any) => {
-                    console.log(reason);
-                    callback({
-                        code: -1,
-                        data: []
-                    })
+                    if (reason['code']) {
+                        throw reason;
+                    } else {
+                        throw {
+                            code: -1,
+                            data: []
+                        };
+                    }
                 }
             );
+        return result;
     }
 }

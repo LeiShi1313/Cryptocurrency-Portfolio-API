@@ -2,7 +2,7 @@
  * Created by DickyShi on 12/17/17.
  */
 import { Router, Request, Response, NextFunction} from 'express';
-import { Exchange, Binance, Gate, Huobi, OKex, ZB, Cryptopia } from '../lib/index';
+import { Exchange, Data, Binance, Gate, Huobi, OKex, ZB, Cryptopia } from '../lib/index';
 import * as querystring from 'querystring';
 
 const keys = require('../keys');
@@ -33,29 +33,56 @@ export class ExchangeRouter {
         this.init();
     }
 
-    public getExchangeBalance = (req: Request, res: Response, next: NextFunction) => {
-        let query = req.params.name;
-        let exchange = exchanges[query];
-        let key = keys[query]['apiKey'];
-        let secret = keys[query]['secretKey'];
+    private _getExchangeBalance (name: string): Promise<Data> {
+        let ret: Promise<Data>;
+        let exchange = exchanges[name];
         if (exchange) {
-            exchange.getBalance(key, secret,
-                (result: any) => {
-                    if (result['code'] === 1) {
-                        res.status(200)
-                            .send(result['data']);
-                    } else {
-                        res.status(404)
-                            .send(result);
-                    }
-            });
+            let key = keys[name]['apiKey'];
+            let secret = keys[name]['secretKey'];
+            ret = exchange.getBalance(key, secret);
         } else {
-            res.status(404)
-                .send({
-                    message: `Exchange ${query} not found!`
-                });
+            ret = Promise.reject({
+                'code': -9999,
+                'message': `Exchange ${name} not found!`,
+                'data': []
+            })
         }
+        return ret;
+    }
+
+    private _getExchangePrice (name: string, pair: string): Promise<Data> {
+        let ret: Promise<Data>;
+        let exchange = exchanges[name];
+        if (exchange) {
+            ret = exchange.getPrice(pair);
+        } else {
+            ret = Promise.reject({
+                'code': -9999,
+                'message': `Exchange ${name} not found!`,
+                'data': []
+            })
+        }
+        return ret;
+    }
+
+    public getExchangeBalance = (req: Request, res: Response, next: NextFunction) => {
+        let name = req.params.name;
+        this._getExchangeBalance(name)
+        .then((result: Data) => {
+            res.status(200)
+            .send(result['data']);
+        })
+        .catch((reason: any) => {
+            res.status(404)
+            .send(reason);
+        })
     };
+
+    public getAllExchangeBalance = (req: Request, res: Response, next: NextFunction) => {
+        for (let exchange of Object.keys(exchanges)) {
+
+        }
+    }
 
     private reflect(promise: Promise<any>) {
         return promise.then(
@@ -69,18 +96,19 @@ export class ExchangeRouter {
         let data:any = {};
         let promises = [];
         for (let exchange of Object.keys(exchanges)) {
-            promises.push(new Promise((resolve: Function, reject: Function) => {
-                exchanges[exchange].getPrice(pair,
-                    (result: any) => {
-                        // console.log(exchange + querystring.stringify(result));
-                        if (result['code'] === 1) {
-                            data[exchange] = Number(result['data']);
-                            resolve();
-                        } else {
-                            reject();
-                        }
-                    });
-            }));
+            promises.push(new Promise(
+                (resolve: Function, reject: Function) => {
+                    exchanges[exchange].getPrice(pair)
+                        .then((result: Data) => {
+                            if (result['code'] === 1) {
+                                data[exchange] = result['data']
+                                resolve();
+                            } else {
+                                reject();
+                            }
+                        });
+                }
+            ));
         }
         Promise.all(promises.map(this.reflect)).then(() => {
             // console.log(data);
@@ -98,37 +126,36 @@ export class ExchangeRouter {
     public getExchangePrice = (req: Request, res: Response, next: NextFunction) => {
         let name = req.params.name;
         let pair = req.params.pair;
-        let exchange = exchanges[name];
-        if (exchange) {
-            exchange.getPrice(pair,
-                (result: any) => {
-                    if (result['code'] === 1) {
-                        this.cachedPrices[name][pair] = Number(result['data']);
-                        console.log(result);
-                        res.status(200)
-                            .send({
-                                'price': Number(result['data']),
-                                'legacy': false
-                            });
-                    } else if (this.cachedPrices[name][pair]) {
-                        res.status(200)
-                            .send({
-                                'price': this.cachedPrices[name][pair],
-                                'legacy': true
-                            });
-                    } else {
-                        res.status(404)
-                            .send(result);
-                    }
-                })
-        }
+        this._getExchangePrice(name, pair)
+        .then((result: Data) => {
+            this.cachedPrices[name][pair] = Number(result['data']);
+            res.status(200)
+            .send({
+                'price': Number(result['data']),
+                'legacy': false
+            });
+        })
+        .catch((reason: any) => {
+            console.log(reason);
+            if (this.cachedPrices[name][pair]) {
+                res.status(200)
+                .send({
+                    'price': this.cachedPrices[name][pair],
+                    'legacy': true
+                });
+            } else {
+                res.status(404)
+                .send(reason);
+            }
+        });
     };
 
 
     init() {
-        this.router.get('/all/ticker/:pair', this.getAllExchangePrice);
-        this.router.get('/:name/balance', this.getExchangeBalance);
-        this.router.get('/:name/ticker/:pair', this.getExchangePrice);
+        this.router.get('/ticker/all/:pair', this.getAllExchangePrice);
+        this.router.get('/ticker/:name/:pair', this.getExchangePrice);
+        this.router.get('/balance/all', this.getAllExchangeBalance);
+        this.router.get('/balance/:name', this.getExchangeBalance);
     }
 }
 

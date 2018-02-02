@@ -24,7 +24,7 @@ class Huobi {
         console.log(sha256String);
         return new Buffer(sha256String).toString('base64');
     }
-    getPrice(pair, callback) {
+    getPrice(pair) {
         let pairs = pair.split('_');
         let params = {
             'symbol': pairs.map(p => p.toLowerCase()).join("")
@@ -33,33 +33,39 @@ class Huobi {
             'Content-type': 'application/json',
             'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.71 Safari/537.36'
         };
-        axios_1.default({
+        const result = axios_1.default({
             method: 'GET',
             url: this.METHOD + this.API_URL + this.MARKET_DETAIL,
             headers: headers,
             params: params
         }).then((res) => {
             if (res.data['status'] === 'ok') {
-                callback({
+                return {
                     code: 1,
                     data: res.data['tick']['close']
-                });
+                };
             }
             else {
-                callback({
+                throw {
                     code: res.data['err-code'],
                     message: res.data['err-msg'],
                     data: ''
-                });
+                };
             }
         }).catch((reason) => {
-            callback({
-                code: -1,
-                data: ''
-            });
+            if (reason['code']) {
+                throw reason;
+            }
+            else {
+                throw {
+                    code: -1,
+                    data: []
+                };
+            }
         });
+        return result;
     }
-    getBalance(key, secret, callback) {
+    getBalance(key, secret) {
         let params = {
             'SignatureMethod': 'HmacSHA256',
             'SignatureVersion': '2',
@@ -71,13 +77,12 @@ class Huobi {
             'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.71 Safari/537.36'
         };
         params['Signature'] = this.sign('GET', this.API_URL, this.BALANCE_URL, params, secret);
-        axios_1.default({
+        const result = axios_1.default({
             method: 'GET',
             url: this.METHOD + this.API_URL + this.BALANCE_URL,
             headers: headers,
             params: params
         }).then((res) => {
-            console.log(res.data);
             if (res.data['status'] === 'ok') {
                 let data = [];
                 let list = res.data['data']['list'];
@@ -90,26 +95,30 @@ class Huobi {
                         });
                     }
                 }
-                callback({
+                return {
                     code: 1,
                     data: data
-                });
+                };
             }
             else {
-                callback({
+                throw {
                     code: res.data['code'],
                     message: res.data['error_code'],
                     data: []
-                });
+                };
             }
         }).catch((reason) => {
-            console.log(reason);
-            callback({
-                code: -1,
-                message: reason,
-                data: []
-            });
+            if (reason['code']) {
+                throw reason;
+            }
+            else {
+                throw {
+                    code: -1,
+                    data: []
+                };
+            }
         });
+        return result;
     }
 }
 exports.Huobi = Huobi;
