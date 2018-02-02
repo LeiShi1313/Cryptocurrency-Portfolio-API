@@ -26,9 +26,9 @@ npm start
 ## Usage
 Set all your API keys in `src/keys.json`. Once the serve is up, there are several APIs available:
 
-- Get your balance from `EXCHANGE_NAME`: `/api/v1/{EXCHANGE_NAME}/balance`
-- Get exchange rate from `EXCHANGE_NAME` between `COIN_1` to `COIN_2`: `/api/v1/{EXCHANGE_NAME}/ticker/{COIN_1}_{COIN_2}`
-- Get exchange rate from all supported exchanges: `/api/v1/all/ticker/{COIN_1}_{COIN_2}`
+- Get your balance from `EXCHANGE_NAME`: `/api/v1/balance/{EXCHANGE_NAME}`
+- Get exchange rate from `EXCHANGE_NAME` between `COIN_1` to `COIN_2`: `/api/v1/ticker/{EXCHANGE_NAME}/{COIN_1}_{COIN_2}`
+- Get exchange rate from all supported exchanges: `/api/v1/ticker/all/{COIN_1}_{COIN_2}`
 
 ## Examples
 
